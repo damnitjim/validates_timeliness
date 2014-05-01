@@ -23,6 +23,8 @@ module ValidatesTimeliness
 
     RESTRICTION_ERROR_MESSAGE = "Error occurred validating %s for %s restriction:\n%s"
 
+    SETUP_DEPRECATED = ActiveRecord.respond_to?(:version) && ActiveRecord.version >= Gem::Version.new('4.1')
+
     def self.kind
       :timeliness
     end
@@ -43,19 +45,16 @@ module ValidatesTimeliness
 
       @restrictions_to_check = RESTRICTIONS.keys & options.keys
       super
-      setup_timeliness_validated_attributes options[:class] if options.key?(:class)
+      setup_model(options[:class]) if SETUP_DEPRECATED
     end
 
-    def setup(klass)
-      setup_timeliness_validated_attributes klass
-    end unless respond_to?(:deprecated_setup)
-
-    def setup_timeliness_validated_attributes(klass)
-      if klass.respond_to?(:timeliness_validated_attributes)
-        klass.timeliness_validated_attributes ||= []
-        klass.timeliness_validated_attributes |= @attributes
+    def setup_model(model)
+      if model.respond_to?(:timeliness_validated_attributes)
+        model.timeliness_validated_attributes ||= []
+        model.timeliness_validated_attributes |= @attributes
       end
     end
+    alias_method :setup, :setup_model unless SETUP_DEPRECATED
 
     def validate_each(record, attr_name, value)
       raw_value = attribute_raw_value(record, attr_name) || value
